@@ -1,0 +1,42 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  font-weight: normal;
+}
+
+body {
+  height: 100%;
+  min-height: 100vh;
+  color: #333333;
+  transition:
+    color 0.5s,
+    background-color 0.5s;
+  line-height: 1.6;
+  font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
+  'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 整个滚动条 */
+::-webkit-scrollbar {
+  /* 对应纵向滚动条的宽度 */
+  width: 5px;
+  /* 对应横向滚动条的宽度 */
+  height: 5px;
+}
+
+/* 滚动条上的滚动滑块 */
+::-webkit-scrollbar-thumb {
+  background-color: #eee;
+  border-radius: 10px;
+}
+
+/* 滚动条轨道 */
+::-webkit-scrollbar-track {
+  border-radius: 10px;
+}
