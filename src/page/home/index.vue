@@ -63,7 +63,7 @@ import {onMounted, onUnmounted, reactive, ref} from "vue";
 import * as echarts from 'echarts'
 import * as XLSX from 'xlsx';
 import {isValueInRanges, mergeData} from "@/utils/index.js";
-import {cloneDeep, debounce, max, min} from 'loadsh'
+import {cloneDeep, debounce, max, min, compact} from 'loadsh'
 import {saveAs} from "file-saver";
 import dayjs from 'dayjs'
 import {Modal} from "@arco-design/web-vue";
@@ -484,6 +484,7 @@ const beforeUpload = (file) => {
       });
       return obj;
     });
+    // tableData = XLSX.utils.sheet_to_json(worksheet)
     console.log('转table完成', new Date().getTime())
     const itemData = tableData[0]
     visualMap = {
@@ -504,7 +505,7 @@ const beforeUpload = (file) => {
     for (let item in itemData) {
       if (!(item === 'deviceName' || item === '时间' || item === '数据标识')) {
         index++
-        const yData = tableData.map(json => json[item])
+        const yData = compact(tableData.map(json => json[item])).map(Number)
         //找出 yData最大最小值
         const yMax = max(yData)
         const yMin = min(yData)
@@ -593,7 +594,6 @@ const resizeChart = debounce(() => {
     chartList[item.id] && chartList[item.id].resize()
   })
 }, 200)
-
 </script>
 
 <style scoped>
