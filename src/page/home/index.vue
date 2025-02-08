@@ -31,6 +31,17 @@
           <a-form-item label="联动">
             <a-switch v-model="formData.update" :unchecked-value="false" :checked-value="true" @change="updateAll"/>
           </a-form-item>
+          <!--          <a-form-item label="时间轴">-->
+          <!--            <a-range-picker-->
+          <!--                showTime-->
+          <!--                v-model="formData.time"-->
+          <!--                :time-picker-props="{-->
+          <!--                   defaultValue:['00:00:00','23:59:59']-->
+          <!--                }"-->
+          <!--                @change="timeChange"-->
+          <!--                style=" width: 380px; "-->
+          <!--            />-->
+          <!--          </a-form-item>-->
           <div style="display: flex;flex-wrap: wrap;margin-top: 10px">
             <div v-for="item in problemOptions" :key="item.value" style="width: 50%;margin: 5px 0;cursor: pointer"
                  @click="setProblem(item)">
@@ -95,8 +106,8 @@ let baseZoom = reactive([
     type: 'slider',
     bottom: 0,
     y: '90%',
-    start: 0,
     height: 30, //组件高度
+    start: 0,
     end: 10,
   }
 ])  // 缩放配置
@@ -177,7 +188,10 @@ const setVisualMap = () => {
   visualMap = option.value.visualMap
   updateAllChartVisualMap()
 }
-
+const timeChange = () => {
+  console.log(formData.time)
+}
+// 更新全部
 const updateAll = () => {
   if (formData.update) {
     updateAllChartVisualMap()
@@ -359,7 +373,7 @@ const initAnnotationChart = () => {
       }
     });
   }, 200);
-  chart.on('brushSelected', debounce((params) => {
+  chart.on('brushSelected', (params) => {
     // 安全检查 params.batch 和 areas 是否存在
     if (
         params.batch &&
@@ -374,7 +388,7 @@ const initAnnotationChart = () => {
         }
       }
     }
-  }, 300));
+  });
   chart.on('dataZoom', debounce(() => {
     baseZoom = chart.getOption().dataZoom
     start = baseZoom[0].start;
@@ -416,22 +430,23 @@ const exportExcel = () => {
   if (!fileInfo.value.name) {
     return
   }
+  console.log('导出开始', new Date().getTime())
   const data = tableData.map((item, index) => {
     return {
       ...item,
       '问题描述': isValueInRanges(index, selectedRanges.value),
     }
   });
+  console.log('数据封装完成', new Date().getTime())
   const worksheet = XLSX.utils.json_to_sheet(data);
-  // 3. 创建工作簿并添加工作表
+  console.log('转换worksheet完成', new Date().getTime())
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  // 4. 将工作簿导出为二进制数据
   const excelBuffer = XLSX.write(workbook, {
     bookType: "xlsx",
     type: "array",
   });
-  // 5. 使用 FileSaver 保存文件
+  console.log('写入execl完成', new Date().getTime())
   const blob = new Blob([excelBuffer], {type: "application/octet-stream"});
   saveAs(blob, `${dayjs(new Date()).format('YYYY/MM/DD HH:mm:ss')}_已标注_${fileInfo.value.name}`);
 }
@@ -466,16 +481,22 @@ const beforeUpload = (file) => {
   loading.value = true
   reader.onload = (e) => {
     const data = new Uint8Array(e.target.result);
-    console.log('读取文件开始', new Date().getTime())
+    const time1 = new Date().getTime()
+    console.log('读取文件开始', time1)
     const workbook = XLSX.read(data, {type: 'array'});
-    console.log('转workbook完成', new Date().getTime())
+    const time2 = new Date().getTime()
+    console.log('读取文件完成', time2);
+    console.log('用时', time2 - time1)
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+      raw: false, // 不解析为原始值
       header: 1, // 保留所有行，包括表头
       defval: "", // 默认值为空字符串
     });
-    console.log('转json完成', new Date().getTime())
+    const time3 = new Date().getTime()
+    console.log('转json完成', time3)
+    console.log('用时', time3 - time2)
     const headers = jsonData[0]; // 获取表头
     tableData = jsonData.slice(1).map(row => {
       const obj = {};
@@ -484,8 +505,9 @@ const beforeUpload = (file) => {
       });
       return obj;
     });
-    // tableData = XLSX.utils.sheet_to_json(worksheet)
-    console.log('转table完成', new Date().getTime())
+    const time4 = new Date().getTime()
+    console.log('转table完成', time4)
+    console.log('用时', time4 - time3)
     const itemData = tableData[0]
     visualMap = {
       show: false,
@@ -568,13 +590,32 @@ const beforeUpload = (file) => {
         };
       }
     }
-    console.log('数据封装完成', new Date().getTime())
+    const time5 = new Date().getTime()
+    console.log('数据封装完成', time5)
+    console.log('用时', time5 - time4)
+
     formData.x = '时间'
     xData = tableData.map(item => {
       return item[formData.x]
     })
     formData.y = options.value[0].value
     loading.value = false
+    baseZoom = [
+      {
+        type: 'inside',
+        start: 0,
+        end: 10
+      },
+      {
+        show: true,
+        type: 'slider',
+        bottom: 0,
+        y: '90%',
+        height: 30, //组件高度
+        start: 0,
+        end: 10,
+      }
+    ]
   };
   reader.readAsArrayBuffer(file);
   return true
@@ -591,7 +632,9 @@ onUnmounted(() => {
 const resizeChart = debounce(() => {
   chart && chart.resize()
   allYData.length && allYData.forEach((item, index) => {
-    chartList[item.id] && chartList[item.id].resize()
+    setTimeout(() => {
+      chartList[item.id] && chartList[item.id].resize()
+    }, (index + 1) * 50)
   })
 }, 200)
 </script>
