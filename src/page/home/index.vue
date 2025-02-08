@@ -80,7 +80,7 @@ import dayjs from 'dayjs'
 import {Modal} from "@arco-design/web-vue";
 
 let start = 0; // 初始 dataZoom 起点
-let end = 10; // 初始 dataZoom 终点
+let end = 100; // 初始 dataZoom 终点
 const step = 5; // 每次移动的步长
 const zoomStep = 5; // 缩放的步长
 let visualMap = {}   // 可视化图
@@ -91,7 +91,8 @@ let loading = ref(false)
 let tableData = reactive([])    // 表格数据
 let allYData = reactive([])  // echartsY轴图表数据
 let options = ref([])  // x轴、y轴选项
-let option = ref({})        // echarts配置项
+let option = ref({})
+let markAreaData = reactive([])// echarts配置项
 let selectedRanges = ref([])// 选中的范围 合并后的
 let currentRange = ref({})// 当前选中范围
 let fileInfo = ref({})      // 文件信息
@@ -99,7 +100,7 @@ let baseZoom = reactive([
   {
     type: 'inside',
     start: 0,
-    end: 10
+    end: 100
   },
   {
     show: true,
@@ -108,54 +109,58 @@ let baseZoom = reactive([
     y: '90%',
     height: 30, //组件高度
     start: 0,
-    end: 10,
+    end: 100,
   }
 ])  // 缩放配置
 const problemOptions = reactive([
   {
-    label: '泵堵塞',
-    value: '泵堵塞',
+    label: '1.泵堵塞',
+    value: '1',
     color: '#63ed05',
   },
   {
-    label: '供液不足',
-    value: '供液不足',
+    label: '2.供液不足',
+    value: '2',
     color: '#da50ef',
   },
   {
-    label: '吸入口堵塞',
-    value: '吸入口堵塞',
+    label: '3.吸入口堵塞',
+    value: '3',
     color: '#3c51bc',
   },
   {
-    label: '气体影响',
-    value: '气体影响',
+    label: '4.气体影响',
+    value: '4',
     color: '#ed713d',
   },
   {
-    label: '结垢',
-    value: '结垢',
+    label: '5.结垢',
+    value: '5',
     color: '#e8bd6e',
   },
   {
-    label: '砂卡',
-    value: '砂卡',
+    label: '6.砂卡',
+    value: '6',
     color: '#eaa78b',
-  }, {
-    label: '油管堵塞',
-    value: '油管堵塞',
+  },
+  {
+    label: '7.油管堵塞',
+    value: '7',
     color: '#f3032f',
-  }, {
-    label: '轴断',
-    value: '轴断',
+  },
+  {
+    label: '8.轴断',
+    value: '8',
     color: '#87b867',
-  }, {
-    label: '油管漏失',
-    value: '油管漏失',
+  },
+  {
+    label: '9.油管漏失',
+    value: '9',
     color: '#0e33c8',
-  }, {
-    label: '供电系统异常',
-    value: '供电系统异常',
+  },
+  {
+    label: '10.供电系统异常',
+    value: '10',
     color: '#c214dd',
   },
 ])  // 问题类型选项
@@ -173,10 +178,31 @@ const setVisualMap = () => {
     lt: item.range[1],
     color: item.color,
   }));
+  markAreaData = selectedRanges.value.map(item => {
+    return [
+      {
+        name: problemOptions.find(option => option.value === item.value).label,
+        xAxis: xData[item.range[0]],
+        itemStyle: {
+          color: item.color,
+          opacity: 0.3
+        },
+        label: {
+          position: 'inside',
+          rotate: -90,
+        },
+      },
+      {
+        xAxis: xData[item.range[1]],
+      },
+    ]
+  });
   const nowOption = chart.getOption();
   option.value.visualMap.pieces = [...pieces];
   option.value.dataZoom = nowOption.dataZoom;
+  option.value.series[0]['markArea']['data'] = markAreaData
   // 更新图表
+  console.log(option.value)
   chart.setOption(option.value, true);
   chart.dispatchAction({
     type: 'takeGlobalCursor', // 激活全局光标
@@ -187,9 +213,6 @@ const setVisualMap = () => {
   });
   visualMap = option.value.visualMap
   updateAllChartVisualMap()
-}
-const timeChange = () => {
-  console.log(formData.time)
 }
 // 更新全部
 const updateAll = () => {
@@ -202,17 +225,19 @@ const updateAll = () => {
 const updateAllChartVisualMap = () => {
   formData.update && allYData.forEach((item, index) => {
     setTimeout(() => {
-      chartList[item.id].setOption({
-        visualMap
-      });
-    }, index * 50)
+      if (chartList[item.id]) {
+        const option = chartList[item.id].getOption()
+        option.series[0]['markArea']['data'] = markAreaData
+        chartList[item.id].setOption(option, true);
+      }
+    }, index * 100)
   })
 }
 //更新所有图表的 dataZoom
 const updateAllChartDataZoom = () => {
   formData.update && allYData.forEach((item, index) => {
     setTimeout(() => {
-      chartList[item.id].dispatchAction({
+      chartList[item.id] && chartList[item.id].dispatchAction({
         type: 'dataZoom',
         start: start,
         end: end
@@ -298,6 +323,7 @@ const initAllChart = () => {
             name: '数据',
             type: 'line',
             data: item.data,
+            markArea: {data: markAreaData},
           },
         ],
       }
@@ -341,6 +367,7 @@ const initAnnotationChart = () => {
         name: '数据',
         type: 'line',
         data: yData.data,
+        markArea: {data: markAreaData},
       },
     ],
     visualMap: visualMap,
@@ -434,7 +461,7 @@ const exportExcel = () => {
   const data = tableData.map((item, index) => {
     return {
       ...item,
-      '问题描述': isValueInRanges(index, selectedRanges.value),
+      'problem': isValueInRanges(index, selectedRanges.value),
     }
   });
   console.log('数据封装完成', new Date().getTime())
@@ -483,13 +510,13 @@ const beforeUpload = (file) => {
     const data = new Uint8Array(e.target.result);
     const time1 = new Date().getTime()
     console.log('读取文件开始', time1)
-    const workbook = XLSX.read(data, {type: 'array'});
+    const workbook = XLSX.read(data, {type: 'array', cellDates: true, dateNF: "YYYY-MM-DD HH:mm:ss"});
     const time2 = new Date().getTime()
     console.log('读取文件完成', time2);
     console.log('用时', time2 - time1)
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+    let jsonData = XLSX.utils.sheet_to_json(worksheet, {
       raw: false, // 不解析为原始值
       header: 1, // 保留所有行，包括表头
       defval: "", // 默认值为空字符串
@@ -525,7 +552,7 @@ const beforeUpload = (file) => {
       ],
     }
     for (let item in itemData) {
-      if (!(item === 'deviceName' || item === '时间' || item === '数据标识')) {
+      if (!(item === 'device_code' || item === 'data_time' || item === 'problem')) {
         index++
         const yData = compact(tableData.map(json => json[item])).map(Number)
         //找出 yData最大最小值
@@ -544,7 +571,7 @@ const beforeUpload = (file) => {
         })
       }
       // 已有数据反显
-      if (item === '问题描述') {
+      if (item === 'problem') {
         const list = [];
         let currentProblem = '';
         let currentRange = {gte: '', lt: '', color: ''};
@@ -559,9 +586,8 @@ const beforeUpload = (file) => {
             currentRange = {gte: '', lt: '', color: ''};
           }
         };
-
         for (let i = 0; i < tableData.length; i++) {
-          const problemDescription = tableData[i]['问题描述'];
+          const problemDescription = tableData[i]['problem'];
           if (problemDescription) {
             if (currentProblem !== problemDescription) {
               finalizeCurrentRange();
@@ -593,18 +619,32 @@ const beforeUpload = (file) => {
     const time5 = new Date().getTime()
     console.log('数据封装完成', time5)
     console.log('用时', time5 - time4)
-
-    formData.x = '时间'
+    formData.x = 'date_time'
     xData = tableData.map(item => {
       return item[formData.x]
     })
+    markAreaData = selectedRanges.value.map(item => {
+      return [
+        {
+          name: problemOptions.find(option => option.value === item.value).label,
+          xAxis: xData[item.range[0]],
+          itemStyle: {
+            color: item.color,
+            opacity: 0.3
+          },
+        },
+        {
+          xAxis: xData[item.range[1]],
+        },
+      ]
+    });
     formData.y = options.value[0].value
     loading.value = false
     baseZoom = [
       {
         type: 'inside',
         start: 0,
-        end: 10
+        end: 100
       },
       {
         show: true,
@@ -613,7 +653,7 @@ const beforeUpload = (file) => {
         y: '90%',
         height: 30, //组件高度
         start: 0,
-        end: 10,
+        end: 100,
       }
     ]
   };
