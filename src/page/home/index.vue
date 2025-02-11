@@ -6,7 +6,7 @@
       </div>
     </a-layout-header>
     <a-layout>
-      <a-layout-sider style="padding: 15px;width: 260px">
+      <a-layout-sider style="padding: 15px;width: 290px">
         <a-form auto-label-width :model="formData" layout="vertical">
           <a-space>
             <a-upload
@@ -31,17 +31,6 @@
           <a-form-item label="联动">
             <a-switch v-model="formData.update" :unchecked-value="false" :checked-value="true" @change="updateAll"/>
           </a-form-item>
-          <!--          <a-form-item label="时间轴">-->
-          <!--            <a-range-picker-->
-          <!--                showTime-->
-          <!--                v-model="formData.time"-->
-          <!--                :time-picker-props="{-->
-          <!--                   defaultValue:['00:00:00','23:59:59']-->
-          <!--                }"-->
-          <!--                @change="timeChange"-->
-          <!--                style=" width: 380px; "-->
-          <!--            />-->
-          <!--          </a-form-item>-->
           <div style="display: flex;flex-wrap: wrap;margin-top: 10px">
             <div v-for="item in problemOptions" :key="item.value" style="width: 50%;margin: 5px 0;cursor: pointer"
                  @click="setProblem(item)">
@@ -479,10 +468,10 @@ const exportExcel = () => {
 }
 //下载模板
 const downLoad = async () => {
-  const attachmentUrl = "./template/template.xlsx";
+  const attachmentUrl = "./template/template.csv";
   const link = document.createElement("a");
   link.href = attachmentUrl;
-  link.download = "template.xlsx";
+  link.download = "template.csv";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -532,6 +521,11 @@ const beforeUpload = (file) => {
       });
       return obj;
     });
+    if (file.name.split('.').pop().toLowerCase() === 'csv')
+      tableData = tableData.map(item => {
+        item['date_time'] = dayjs(new Date(item['date_time']).getTime() + 8 * 60 * 60 * 1000).format('YYYY-MM-DD HH:mm:ss')
+        return item
+      })
     const time4 = new Date().getTime()
     console.log('转table完成', time4)
     console.log('用时', time4 - time3)
