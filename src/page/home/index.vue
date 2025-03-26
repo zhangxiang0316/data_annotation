@@ -66,7 +66,7 @@ import {isValueInRanges, mergeData} from "@/utils/index.js";
 import {cloneDeep, debounce, max, min, compact} from 'loadsh'
 import {saveAs} from "file-saver";
 import dayjs from 'dayjs'
-import {Modal} from "@arco-design/web-vue";
+import {Message, Modal} from "@arco-design/web-vue";
 
 let start = 0; // 初始 dataZoom 起点
 let end = 100; // 初始 dataZoom 终点
@@ -152,6 +152,11 @@ const problemOptions = reactive([
     value: '10',
     color: '#c214dd',
   },
+  {
+    label: '正常数据',
+    value: '',
+    color: '#ffffff00',
+  }
 ])  // 问题类型选项
 const formData = reactive({update: false}) // 表单数据
 const history = ref([])
@@ -166,7 +171,7 @@ const setVisualMap = () => {
     gte: item.range[0],
     lt: item.range[1],
     color: item.color,
-  }));
+  })).filter(item => item.color !== '#ffffff00');
   markAreaData = selectedRanges.value.map(item => {
     return [
       {
@@ -186,6 +191,7 @@ const setVisualMap = () => {
       },
     ]
   });
+  markAreaData = markAreaData.filter(item => item[0].name !== '正常数据')
   const nowOption = chart.getOption();
   option.value.visualMap.pieces = [...pieces];
   option.value.dataZoom = nowOption.dataZoom;
@@ -246,7 +252,12 @@ const back = () => {
 const updateSelectedRanges = () => {
   if (selectedRanges.value.length)
     history.value.push(cloneDeep(selectedRanges.value))
-  selectedRanges.value = mergeData(selectedRanges.value, currentRange.value)
+  const res = mergeData(selectedRanges.value, currentRange.value)
+  if (res === '该范围被其他区间重叠') {
+    Message.error('该范围被其他区间重叠')
+    return
+  }
+  selectedRanges.value = res
   setVisualMap()
   currentRange.value = {}
 }
@@ -303,8 +314,10 @@ const initAllChart = () => {
         },
         yAxis: {
           type: 'value',
-          min: item.min,
-          max: item.max
+          scale: true,  // 允许 Y 轴随数据调整
+
+          // min: item.min,
+          // max: item.max
         },
         visualMap: visualMap,
         series: [
@@ -347,8 +360,9 @@ const initAnnotationChart = () => {
     },
     yAxis: {
       type: 'value',
-      min: yData.min,
-      max: yData.max
+      scale: true,  // 允许 Y 轴随数据调整
+      // min: yData.min,
+      // max: yData.max
     },
     dataZoom: baseZoom,
     series: [
@@ -549,15 +563,15 @@ const beforeUpload = (file) => {
       if (!(item === 'device_code' || item === 'data_time' || item === 'problem')) {
         index++
         const yData = compact(tableData.map(json => json[item])).map(Number)
-        //找出 yData最大最小值
-        const yMax = max(yData)
-        const yMin = min(yData)
+        // 找出 yData最大最小值
+        // const yMax = max(yData)
+        // const yMin = min(yData)
         allYData.push({
           id: `chat_id_${index}`,
           title: item,
           data: yData,
-          min: yMin,
-          max: yMax
+          // min: yMin,
+          // max: yMax
         })
         options.value.push({
           label: item,

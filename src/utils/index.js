@@ -5,9 +5,18 @@ export const mergeData = (data, test) => {
     let result = cloneDeep(data);
     const testColor = test.color;
     const testRange = test.range;
+    // 检查 test.range 是否完全包含在某个已有范围内
+    for (let entry of result) {
+        const [entryStart, entryEnd] = entry.range;
+        const [testStart, testEnd] = testRange;
+        if (testStart >= entryStart && testEnd <= entryEnd) {
+            return "该范围被其他区间重叠"; // 直接返回提示
+        }
+    }
 
     // 查找与 test 相同颜色的条目
     const matchingEntries = result.filter(entry => entry.color === testColor);
+    // 检查是否有重叠的范围
     let hasOverlap = false;
     matchingEntries.forEach(entry => {
         const [entryStart, entryEnd] = entry.range;
